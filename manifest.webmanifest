@@ -1,0 +1,14 @@
+{
+  "name": "きょうの献立",
+  "short_name": "献立",
+  "description": "気分・空腹度・体調から今日の献立を提案。材料と概算価格も人数分で自動計算。",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#fdf8f2",
+  "theme_color": "#ff7043",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
