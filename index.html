@@ -62,6 +62,7 @@ details.adv h2.sec{margin-top:12px}
 .card{background:var(--card);border-radius:18px;padding:16px;margin-top:12px;box-shadow:0 2px 12px rgba(90,60,40,.07)}
 .card .head{display:flex;gap:12px;align-items:flex-start;cursor:pointer}
 .card .emoji{font-size:2.1rem;line-height:1;background:var(--chip);border-radius:14px;padding:10px}
+.card .pic{width:64px;height:64px;border-radius:14px;object-fit:cover;flex-shrink:0;background:var(--chip)}
 .card .ttl{font-size:1.1rem;font-weight:bold}
 .card .badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .badge{font-size:.8rem;background:var(--chip);color:var(--accent-dark);border-radius:999px;padding:4px 10px;font-weight:bold}
@@ -174,6 +175,10 @@ nav.tabs button .bdg{position:absolute;transform:translate(14px,-4px);background
       <div class="chips" id="genreChips"></div>
       <h2 class="sec">👅 味の気分</h2>
       <div class="chips" id="tasteChips"></div>
+      <h2 class="sec">🍚 主食はどれ？</h2>
+      <div class="chips" id="stapleChips"></div>
+      <h2 class="sec">🌡 温かい？冷たい？</h2>
+      <div class="chips" id="tempChips"></div>
       <h2 class="sec">🍖 主役の食材</h2>
       <div class="chips" id="mainChips"></div>
       <h2 class="sec">🎯 きょうの目的</h2>
@@ -306,6 +311,9 @@ const GENRES=[[null,"✨ なんでも"],["wa","🍚 和食"],["yo","🍝 洋食"
 const TASTES=[[null,"✨ おまかせ"],["sappari","🍋 さっぱり"],["kotteri","🍖 こってり"],["spicy","🌶 ピリ辛"],["amai","🍯 甘め・まろやか"]];
 const MAINS=[[null,"✨ なんでも"],["niku","🍖 お肉"],["sakana","🐟 魚介"],["tamago","🥚 卵"],["tofu","🫘 豆腐"],["yasai","🥬 野菜"],["men","🍜 麺"],["gohan","🍚 ご飯・パン"]];
 const GOALS=[[null,"✨ 特になし"],["diet","🥗 軽く・ダイエット"],["protein","💪 たんぱく質補給"],["yasai","🥦 野菜不足解消"],["stamina","🔥 スタミナ回復"]];
+const STAPLES=[[null,"✨ なんでも"],["rice","🍚 お米"],["bread","🍞 パン"],["men","🍜 麺"]];
+const TEMPS=[[null,"✨ どちらでも"],["hot","🔥 温かいもの"],["cold","🧊 冷たいもの"]];
+const STAPLELABEL={rice:"お米",bread:"パン",men:"麺"};
 const TASTELABEL=Object.fromEntries(TASTES);
 
 /* ================= 状態 ================= */
@@ -315,7 +323,7 @@ const store={
 };
 let state={
   mood:null,hunger:"2",cond:"normal",
-  genre:null,taste:null,main:null,goal:null,
+  genre:null,taste:null,main:null,goal:null,staple:null,temp:null,
   people:store.get("people",2),
   shownIds:[],lastResults:[]
 };
@@ -359,6 +367,8 @@ function buildReason(r){
   if(state.mood&&r.mood.includes(state.mood))parts.push(MOODLABEL[state.mood].replace(/^\S+\s/,"")+"気分にマッチ");
   if(r.good.includes(state.cond))parts.push(CONDLABEL[state.cond].replace(/^\S+\s/,"")+"の体にやさしい");
   if(state.taste&&r.ta.includes(state.taste))parts.push(TASTELABEL[state.taste].replace(/^\S+\s/,"")+"派のあなたに");
+  if(state.staple&&(r.st||[]).includes(state.staple))parts.push(STAPLELABEL[state.staple]+"が主食");
+  if(state.temp&&(r.tmp===state.temp||r.tmp==="both"))parts.push(state.temp==="cold"?"ひんやり冷たいメニュー":"あったかメニュー");
   if(state.goal&&r.go.includes(state.goal)){
     const gp={diet:"約"+r.k+"kcalと控えめ",protein:"たんぱく質しっかり",yasai:"野菜たっぷり摂れる",stamina:"スタミナ満点"};
     parts.push(gp[state.goal]);
@@ -384,6 +394,8 @@ function suggest(reroll){
     if(r.good.includes(state.cond))s+=4;
     if(state.genre){if(r.g===state.genre)s+=2;else s-=8}
     if(state.main){if(r.m===state.main)s+=2.5;else s-=8}
+    if(state.staple){if((r.st||[]).includes(state.staple))s+=2;else s-=8}
+    if(state.temp){const t=r.tmp||"hot";if(t==="both"||t===state.temp)s+=2;else s-=8}
     if(state.taste){
       if(r.ta.includes(state.taste))s+=3;
       else{const opp={sappari:"kotteri",kotteri:"sappari"}[state.taste];if(opp&&r.ta.includes(opp))s-=3}
@@ -427,6 +439,8 @@ function renderInputs(){
   chipGroup($("#condChips"),CONDS,"cond",it=>it[1]);
   chipGroup($("#genreChips"),GENRES,"genre",it=>it[1]);
   chipGroup($("#tasteChips"),TASTES,"taste",it=>it[1]);
+  chipGroup($("#stapleChips"),STAPLES,"staple",it=>it[1]);
+  chipGroup($("#tempChips"),TEMPS,"temp",it=>it[1]);
   chipGroup($("#mainChips"),MAINS,"main",it=>it[1]);
   chipGroup($("#goalChips"),GOALS,"goal",it=>it[1]);
   $("#peopleNum").textContent=state.people;
@@ -451,7 +465,7 @@ function makeCard(r,opts={}){
   card.className="card"+(opts.open?" open":"");
   card.innerHTML=`
     <div class="head">
-      <div class="emoji">${r.e}</div>
+      ${r.im?`<img class="pic" src="img/${r.im}" alt="${r.n}" loading="lazy">`:`<div class="emoji">${r.e}</div>`}
       <div style="flex:1">
         <div class="ttl">${opts.rank?`<span class="rank">${opts.rank}</span>`:""}${r.n}</div>
         <div class="badges">
@@ -759,6 +773,7 @@ $("#btnWeekShop").onclick=weekToShopping;
 $("#btnSuggest").onclick=()=>{state.shownIds=[];suggest(false)};
 $("#btnOmakase").onclick=()=>{
   state.mood=null;state.genre=null;state.taste=null;state.main=null;state.goal=null;
+  state.staple=null;state.temp=null;
   state.hunger="2";state.cond="normal";renderInputs();
   state.shownIds=[];suggest(false);
   toast("おまかせで3つ選びました🎲");
